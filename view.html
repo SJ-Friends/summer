@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>summer 게시판</title>
+<style>
+body{background:#3A6EA5;margin:0;padding:12px;font:13px/1.5 Dotum,"Malgun Gothic",sans-serif;color:#000}
+.wrap{max-width:900px;margin:0 auto}header{text-align:center}header img{max-width:100%}
+.box{background:#fff;margin:8px 0}.hd{background:#000;color:#fff;padding:6px 8px;font-size:14px}
+.meta{padding:5px 8px;background:#BFD9F3;display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+.body{padding:14px 10px;overflow-x:auto;word-break:break-word;min-height:80px}.body img{max-width:100%}
+.nav{display:flex;justify-content:space-between;gap:8px;margin:8px 0}
+.nav a,.nav button{background:#000;color:#fff;border:0;padding:5px 12px;font:inherit;cursor:pointer;text-decoration:none}
+.nav .off{visibility:hidden}
+table.rep{width:100%;border-collapse:collapse;background:#fff}
+.rep td{padding:4px 6px;border-bottom:1px solid #ccf;vertical-align:middle}
+.rep .ic{width:50px;text-align:center}.rep .who{width:70px;text-align:center;white-space:nowrap}
+.rep .dt{width:105px;text-align:center;white-space:nowrap;font-size:12px;color:#555}.rep .memo{word-break:break-word}
+.rep img{vertical-align:middle}.msg{color:#fff;text-align:center;padding:30px}h3{color:#fff;margin:14px 0 4px;font-size:13px}
+</style></head><body><div class="wrap">
+<header><img src="skin/ex/main.gif" alt="summer" onerror="this.remove()"></header>
+<div id="app"><div class="msg">불러오는 중...</div></div></div>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+<script>
+const SB_URL="https://xxmtxuhcdzidhrefrvwf.supabase.co", SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh4bXR4dWhjZHppZGhyZWZydndmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwODAyNTQsImV4cCI6MjA1OTY1NjI1NH0.TaCCDlJvKrif_pZY038Qkglip8h-Qqjp2w2GlKwvoVg", H={apikey:SB_KEY,Authorization:"Bearer "+SB_KEY};
+const esc=s=>(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const j=async p=>{const r=await fetch(SB_URL+"/rest/v1/"+p,{headers:H});if(!r.ok)throw new Error(await r.text());return r.json()};
+const SM={":)":"regular_smile",":-)":"regular_smile",":d":"teeth_smile",":-d":"teeth_smile",":o":"omg_smile",":-o":"omg_smile",":p":"tounge_smile",":-p":"tounge_smile",";)":"wink_smile",";-)":"wink_smile",":(":"sad_smile",":-(":"sad_smile",":s":"confused_smile",":-s":"confused_smile",":|":"whatchutalkingabout_smile",":-|":"whatchutalkingabout_smile",":'(":"cry_smile",":$":"embaressed_smile",":-$":"embaressed_smile","(h)":"shades_smile",":@":"angry_smile",":-@":"angry_smile","(a)":"angel_smile","(6)":"devil_smile","(l)":"heart","(u)":"broken_heart","(k)":"kiss","(g)":"present","(f)":"rose","(w)":"wilted_rose","(c)":"coffee","(i)":"lightbulb","(*)":"star","(8)":"musical_note","(e)":"envelope","(^)":"cake","(o)":"clock","(y)":"thumbs_up","(n)":"thumbs_down","(b)":"beer_yum","(d)":"martini_shaken"};
+const SMRE=new RegExp(Object.keys(SM).sort((a,b)=>b.length-a.length).map(k=>k.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")).join("|"),"gi");
+const smile=s=>s.replace(SMRE,m=>`<img src="emoticon/${SM[m.toLowerCase()]}.gif" alt="${m}">`);
+let av={},emos=[];
+const tokens=h=>{for(const e of emos)h=h.split(esc(e.keyword)).join(`<img src="addemo/${e.id}.gif" alt="">`);
+  return h.replace(/\(([^()]{1,10})\)/g,(m,n)=>av[n]?`<img src="ava/${av[n]}.gif" alt="${esc(n)}">`:m)};
+const nameHtml=n=>av[n]?`<img src="ava/${av[n]}.gif" alt="${esc(n)}" title="${esc(n)}">`:esc(n);
+const rich=t=>smile(tokens(esc(t).replace(/###/g,"<b style='color:red'>").replace(/@@@/g,"</b>")));
+function body(raw){
+  let s=(raw||"").replace(/\\r/g,"").replace(/\\n/g,"\n").replace(/\\(['"\\])/g,"$1").replace(/&abd/g,'"').replace(/&abc/g,"'")
+    .replace(/###/g,"<b style='color:red'>").replace(/@@@/g,"</b>");
+  if(!/<br|<p[ >]|<div/i.test(s)) s=s.replace(/\n/g,"<br>");
+  const box=document.createElement("div"); box.innerHTML=DOMPurify.sanitize(s);
+  const w=document.createTreeWalker(box,NodeFilter.SHOW_TEXT),ns=[]; while(w.nextNode())ns.push(w.currentNode);
+  for(const n of ns){ if(n.parentElement.closest("a")) continue; const e=esc(n.nodeValue),h=smile(e);
+    if(h!==e){const sp=document.createElement("span");sp.innerHTML=h;n.replaceWith(sp)} }
+  return box.innerHTML;
+}
+const app=document.getElementById("app"),back=`<button onclick="history.length>1?history.back():location.href='index.html'">목록</button>`;
+(async()=>{try{
+  const n=+new URLSearchParams(location.search).get("num");
+  (await j("avatars?select=name,file")).forEach(a=>av[a.name]=a.file);
+  emos=(await j("emoticons?select=id,keyword")).sort((a,b)=>b.keyword.length-a.keyword.length);
+  const [p]=await j(`posts?num=eq.${n}&select=*`);
+  if(!p){app.innerHTML=`<div class="msg">없는 글이거나 볼 수 없는 글입니다.</div><div class="nav">${back}</div>`;return}
+  document.title=p.title+" - summer";
+  const [cm,[nw],[od]]=await Promise.all([
+    j(`comments?post_num=eq.${n}&select=*&order=posted_at.asc.nullslast,id.asc`),
+    j(`posts?select=num&turn=gt.${p.turn}&order=turn.asc&limit=1`),
+    j(`posts?select=num&turn=lt.${p.turn}&order=turn.desc&limit=1`)]);
+  const nav=`<div class="nav">${od?`<a href="view.html?num=${od.num}">◀ 이전글</a>`:'<a class="off">.</a>'}${back}${nw?`<a href="view.html?num=${nw.num}">다음글 ▶</a>`:'<a class="off">.</a>'}</div>`;
+  app.innerHTML=`<div class="box"><div class="hd">${rich(p.title)}</div>
+    <div class="meta"><span>글쓴이 ${nameHtml(p.name)}</span><span>${(p.posted_at||"").replace("T"," ").slice(0,16)}</span><span>조회 ${p.views}</span><span>의견 ${cm.length}</span></div>
+    <div class="body">${body(p.body)}</div></div>${nav}
+    ${cm.length?`<h3>의견 ${cm.length}개</h3><table class="rep">${cm.map(c=>`<tr><td class="ic"><img src="emo/${esc(c.icon)}.gif" alt="" onerror="this.remove()">
+    <td class="who">${nameHtml(c.writer)}<td class="memo"${c.highlight?' style="background:#31ffff"':""}>${rich(c.memo)}
+    <td class="dt">${(c.posted_at||"").replace("T"," ").slice(0,16)}</tr>`).join("")}</table>`:""}${cm.length>8?nav:""}`;
+}catch(x){app.innerHTML=`<div class="msg">불러오기 실패: ${esc(x.message)}</div>`}})();
+</script></body></html>
