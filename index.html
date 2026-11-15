@@ -52,7 +52,7 @@ async function load(){
     const ind=p.depth>1?"&nbsp;&nbsp;".repeat(p.depth)+'<img src="skin/ex/re.gif" alt="">':"";
     const nm=avatars[p.name]?`<img src="ava/${avatars[p.name]}.gif" alt="${esc(p.name)}" title="${esc(p.name)}">`:esc(p.name);
     return `<tr class="${p.views==0?"new":""}"><td class="c">${p.turn>9990?"공지":p.turn}</td>
-    <td>${ind}<a href="#" title="글보기는 다음 단계">${title(p.title)}</a></td><td class="c">${nm}</td>
+    <td>${ind}<a href="view.html?num=${p.num}">${title(p.title)}</a></td><td class="c">${nm}</td>
     <td class="c">${p.views}</td><td class="c">${p.rcount?`<b style="color:blue">${p.rcount}</b>`:0}</td>
     <td class="c">${(p.posted_at||"").slice(0,10)}</td></tr>`}).join("");
   const a=Math.floor((page-1)/GROUP)*GROUP+1, b=Math.min(a+GROUP-1,last); let h="";
