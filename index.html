@@ -47,13 +47,14 @@ function title(t){
   return s.replace(/\(([^()]{1,10})\)/g,(m,n)=>avatars[n]?`<img src="ava/${avatars[n]}.gif" alt="${esc(n)}">`:m);
 }
 async function load(){
-  const s=st(), page=+s.p||1, sort=s.s||"turn", q=(s.q||"").replace(/["\\]/g,"");
+  const s=st(), page=+s.p||1, sort=s.s||"turn", q=(s.q||"").trim(), col=["body","title","name"].includes(s.m)?s.m:"body";
   let u=`posts?select=num,title,name,views,rcount,posted_at,depth,turn&order=${sort}.desc.nullslast,num.desc&limit=${PAGE}&offset=${(page-1)*PAGE}`;
-  if(q) u+=`&${s.m||"body"}=ilike.${encodeURIComponent('"*'+q+'*"')}`;
+  if(q) u+=`&${col}=ilike.${encodeURIComponent("*"+q+"*")}`;
   u+=notIn("name");
   const r=await get(u,{Prefer:"count=exact"}), d=await r.json();
   const total=+(r.headers.get("Content-Range")||"/0").split("/")[1], last=Math.max(1,Math.ceil(total/PAGE));
-  document.getElementById("msg").textContent=d.length?"":"게시물이 없습니다";
+  document.getElementById("q").value=q; document.getElementById("m").value=col;
+  document.getElementById("msg").textContent=d.length?(q?`'${q}' 검색 결과 ${total}건`:""):(q?`'${q}'에 대한 검색 결과가 없습니다`:"게시물이 없습니다");
   document.getElementById("rows").innerHTML=d.map(p=>{
     const ind=p.depth>1?"&nbsp;&nbsp;".repeat(p.depth)+'<img src="skin/ex/re.gif" alt="">':"";
     const nm=avatars[p.name]?`<img src="ava/${avatars[p.name]}.gif" alt="${esc(p.name)}" title="${esc(p.name)}">`:esc(p.name);
