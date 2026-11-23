@@ -27,6 +27,11 @@ const SM={":)":"regular_smile",":-)":"regular_smile",":d":"teeth_smile",":-d":"t
 const SMRE=new RegExp(Object.keys(SM).sort((a,b)=>b.length-a.length).map(k=>k.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")).join("|"),"gi");
 const smile=s=>s.replace(SMRE,m=>`<img src="emoticon/${SM[m.toLowerCase()]}.gif" alt="${m}">`);
 let av={},emos=[];
+let BL=[];
+async function loadBlocked(){try{const r=await fetch("blocked.txt",{cache:"no-cache"});
+  if(r.ok)BL=(await r.text()).split(/\r?\n/).map(s=>s.trim()).filter(s=>s&&!s.startsWith("#"))}catch(e){}}
+const notIn=c=>BL.length?"&or="+encodeURIComponent(`(${c}.is.null,${c}.not.in.(${BL.map(n=>'"'+n.replace(/[\\"]/g,"\\$&")+'"').join(",")}))`):"";
+
 const tokens=h=>{for(const e of emos)h=h.split(esc(e.keyword)).join(`<img src="addemo/${e.id}.gif" alt="">`);
   return h.replace(/\(([^()]{1,10})\)/g,(m,n)=>av[n]?`<img src="ava/${av[n]}.gif" alt="${esc(n)}">`:m)};
 const nameHtml=n=>av[n]?`<img src="ava/${av[n]}.gif" alt="${esc(n)}" title="${esc(n)}">`:esc(n);
@@ -44,15 +49,16 @@ function body(raw){
 const app=document.getElementById("app"),back=`<button onclick="history.length>1?history.back():location.href='index.html'">목록</button>`;
 (async()=>{try{
   const n=+new URLSearchParams(location.search).get("num");
+  await loadBlocked();
   (await j("avatars?select=name,file")).forEach(a=>av[a.name]=a.file);
   emos=(await j("emoticons?select=id,keyword")).sort((a,b)=>b.keyword.length-a.keyword.length);
-  const [p]=await j(`posts?num=eq.${n}&select=*`);
+  const [p]=await j(`posts?num=eq.${n}&select=*${notIn("name")}`);
   if(!p){app.innerHTML=`<div class="msg">없는 글이거나 볼 수 없는 글입니다.</div><div class="nav">${back}</div>`;return}
   document.title=p.title+" - summer";
   const [cm,[nw],[od]]=await Promise.all([
-    j(`comments?post_num=eq.${n}&select=*&order=posted_at.asc.nullslast,id.asc`),
-    j(`posts?select=num&turn=gt.${p.turn}&order=turn.asc&limit=1`),
-    j(`posts?select=num&turn=lt.${p.turn}&order=turn.desc&limit=1`)]);
+    j(`comments?post_num=eq.${n}&select=*&order=posted_at.asc.nullslast,id.asc${notIn("writer")}`),
+    j(`posts?select=num&turn=gt.${p.turn}&order=turn.asc&limit=1${notIn("name")}`),
+    j(`posts?select=num&turn=lt.${p.turn}&order=turn.desc&limit=1${notIn("name")}`)]);
   const nav=`<div class="nav">${od?`<a href="view.html?num=${od.num}">◀ 이전글</a>`:'<a class="off">.</a>'}${back}${nw?`<a href="view.html?num=${nw.num}">다음글 ▶</a>`:'<a class="off">.</a>'}</div>`;
   app.innerHTML=`<div class="box"><div class="hd">${rich(p.title)}</div>
     <div class="meta"><span>글쓴이 ${nameHtml(p.name)}</span><span>${(p.posted_at||"").replace("T"," ").slice(0,16)}</span><span>조회 ${p.views}</span><span>의견 ${cm.length}</span></div>

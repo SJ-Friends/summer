@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>summer 게시판</title>
+<style>
+body{background:#3A6EA5;margin:0;padding:12px;font:13px/1.4 Dotum,"Malgun Gothic",sans-serif;color:#000}
+.wrap{max-width:900px;margin:0 auto;overflow-x:auto}
+header{text-align:center}header img{max-width:100%}
+table{width:100%;border-collapse:separate;border-spacing:1px}
+th{background:#000;color:#fff;font-weight:normal;padding:4px;white-space:nowrap}
+th a{color:#fff;text-decoration:none}
+td{background:#fff;padding:5px;height:28px}td.c{text-align:center;white-space:nowrap}
+tr.new td{background:#0080FF}tr:hover td{background:#BFD9F3}
+a{color:#000;text-decoration:none}a:hover{text-decoration:underline;color:red}
+td img{vertical-align:middle}
+form{margin:10px 0;text-align:center;color:#fff}
+.pg{text-align:center;margin:10px 0}.pg a,.pg b{display:inline-block;min-width:22px;padding:2px 4px;color:#fff}
+.pg b{background:#000}.msg{color:#fff;text-align:center;padding:20px}
+</style></head><body><div class="wrap">
+<header><img src="skin/ex/main.gif" alt="summer" onerror="this.remove()"></header>
+<table><thead><tr>
+<th width=50>글번호</th><th>글 제 목</th><th width=70>글쓴이</th>
+<th width=60>조회수 <a href="#" data-s="views">▼</a></th>
+<th width=50>의견 <a href="#" data-s="rcount">▼</a></th>
+<th width=90>글쓴날 <a href="#" data-s="posted_at">▼</a></th></tr></thead>
+<tbody id="rows"></tbody></table>
+<div class="pg" id="pg"></div>
+<form id="sf"><select id="m"><option value="body">내용</option><option value="title">제목</option><option value="name">이름</option></select>
+<input id="q" size="16"> <button>검색</button></form>
+<div class="msg" id="msg"></div></div>
+<script>
+const SB_URL="https://xxmtxuhcdzidhrefrvwf.supabase.co", SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh4bXR4dWhjZHppZGhyZWZydndmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwODAyNTQsImV4cCI6MjA1OTY1NjI1NH0.TaCCDlJvKrif_pZY038Qkglip8h-Qqjp2w2GlKwvoVg";
+const PAGE=10, GROUP=10, H={apikey:SB_KEY,Authorization:"Bearer "+SB_KEY};
+const esc=s=>(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let avatars={}, emos=[];
+let BL=[];
+async function loadBlocked(){try{const r=await fetch("blocked.txt",{cache:"no-cache"});
+  if(r.ok)BL=(await r.text()).split(/\r?\n/).map(s=>s.trim()).filter(s=>s&&!s.startsWith("#"))}catch(e){}}
+const notIn=c=>BL.length?"&or="+encodeURIComponent(`(${c}.is.null,${c}.not.in.(${BL.map(n=>'"'+n.replace(/[\\"]/g,"\\$&")+'"').join(",")}))`):"";
+
+const get=async(p,extra={})=>{const r=await fetch(SB_URL+"/rest/v1/"+p,{headers:{...H,...extra}});
+  if(!r.ok) throw new Error(await r.text()); return r;};
+const st=()=>Object.fromEntries(new URLSearchParams(location.hash.slice(1)));
+const go=o=>{location.hash=new URLSearchParams({...st(),...o}).toString()};
+function title(t){
+  let s=esc(t).replace(/###/g,"<b style='color:red'>").replace(/@@@/g,"</b>");
+  for(const e of emos) s=s.split(esc(e.keyword)).join(`<img src="addemo/${e.id}.gif" alt="">`);
+  return s.replace(/\(([^()]{1,10})\)/g,(m,n)=>avatars[n]?`<img src="ava/${avatars[n]}.gif" alt="${esc(n)}">`:m);
+}
+async function load(){
+  const s=st(), page=+s.p||1, sort=s.s||"turn", q=(s.q||"").replace(/["\\]/g,"");
+  let u=`posts?select=num,title,name,views,rcount,posted_at,depth,turn&order=${sort}.desc.nullslast,num.desc&limit=${PAGE}&offset=${(page-1)*PAGE}`;
+  if(q) u+=`&${s.m||"body"}=ilike.${encodeURIComponent('"*'+q+'*"')}`;
+  u+=notIn("name");
+  const r=await get(u,{Prefer:"count=exact"}), d=await r.json();
+  const total=+(r.headers.get("Content-Range")||"/0").split("/")[1], last=Math.max(1,Math.ceil(total/PAGE));
+  document.getElementById("msg").textContent=d.length?"":"게시물이 없습니다";
+  document.getElementById("rows").innerHTML=d.map(p=>{
+    const ind=p.depth>1?"&nbsp;&nbsp;".repeat(p.depth)+'<img src="skin/ex/re.gif" alt="">':"";
+    const nm=avatars[p.name]?`<img src="ava/${avatars[p.name]}.gif" alt="${esc(p.name)}" title="${esc(p.name)}">`:esc(p.name);
+    return `<tr class="${p.views==0?"new":""}"><td class="c">${p.turn>9990?"공지":p.turn}</td>
+    <td>${ind}<a href="view.html?num=${p.num}">${title(p.title)}</a></td><td class="c">${nm}</td>
+    <td class="c">${p.views}</td><td class="c">${p.rcount?`<b style="color:blue">${p.rcount}</b>`:0}</td>
+    <td class="c">${(p.posted_at||"").slice(0,10)}</td></tr>`}).join("");
+  const a=Math.floor((page-1)/GROUP)*GROUP+1, b=Math.min(a+GROUP-1,last); let h="";
+  if(a>1) h+=`<a href="#" data-p="${a-1}">◀</a>`;
+  for(let i=a;i<=b;i++) h+=i==page?`<b>${i}</b>`:`<a href="#" data-p="${i}">${i}</a>`;
+  if(b<last) h+=`<a href="#" data-p="${b+1}">▶</a>`;
+  document.getElementById("pg").innerHTML=h;
+}
+document.addEventListener("click",e=>{const a=e.target.closest("a[data-p],a[data-s]");if(!a)return;e.preventDefault();
+  a.dataset.p?go({p:a.dataset.p}):go({s:a.dataset.s,p:1})});
+document.getElementById("sf").onsubmit=e=>{e.preventDefault();go({q:q.value,m:m.value,p:1})};
+addEventListener("hashchange",()=>load().catch(x=>msg.textContent=x.message));
+(async()=>{try{
+  (await (await get("avatars?select=name,file")).json()).forEach(a=>avatars[a.name]=a.file);
+  emos=(await (await get("emoticons?select=id,keyword")).json()).sort((a,b)=>b.keyword.length-a.keyword.length);
+  await loadBlocked();await load()}catch(x){msg.textContent="불러오기 실패: "+x.message}})();
+</script></body></html>
